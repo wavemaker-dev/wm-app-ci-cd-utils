@@ -25,3 +25,7 @@ buildspec.yml file native AWS automation file. we use this file in AWS codebuild
 ## Dockerfile
 
 The Dockerfile is used to deploy the application war file to tomcat container
+
+## wm_app_ci_cd.sh
+
+The wm_app_ci_Cd.sh script will help to deploy the application to Kubernetes service and with sonarqube analysis using ci cd tool jenkins
