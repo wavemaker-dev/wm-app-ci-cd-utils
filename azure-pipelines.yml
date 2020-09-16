@@ -1,0 +1,149 @@
+name: wavemaker cicd
+trigger:
+  branches:
+    include:
+    - prod
+    - UAT
+    exclude:
+    - master
+
+
+#pr:
+ # branches:
+   # include:
+  #  - master
+   # exclude:
+   # - prod
+   # - UAT
+variables: 
+  ## Add this under variables section in the pipeline
+  image_repository: $(repository_name)
+  azureContainerRegistry: $(acr_service_name)
+  aks_service: $(aks_service_name)
+  image_registry: $(acr_registry)
+  subcription_service: $(az_subcription_service)
+  storage_account: $(storage_account_name)
+  cdn_url: $(cdn_endpoint)
+  MAVEN_CACHE_FOLDER: $(Pipeline.Workspace)/.m2/repository
+  MAVEN_OPTS: '-Dmaven.repo.local=$(MAVEN_CACHE_FOLDER)'
+  build_profile: $(maven_build_profile)
+  webapp_replicas: $(no_of_webapp_repicas)
+  database_container: $(default_database_container)
+  PROD_branch_namespace: $(prod_namespace)
+  UAT_branch_namespace: $(uat_namespace)
+  application_context: $(application_name)
+pool:
+    vmImage: 'Ubuntu-16.04'
+stages:
+- stage: build_and_deploy
+  jobs:
+  - job: maven_build_and_docker_build
+    displayName: maven build and docker image build
+    steps:
+      - task: Cache@2
+        inputs:
+          key: 'maven | "$(Agent.OS)" | **/pom.xml'
+          restoreKeys: |
+            maven | "$(Agent.OS)"
+            maven
+          path: $(MAVEN_CACHE_FOLDER)
+        displayName: Cache Maven local repo
+      - script: |
+            wget https://nodejs.org/dist/v10.12.0/node-v10.12.0-linux-x64.tar.gz
+            mkdir $(Build.SourcesDirectory)/node
+            tar -xzf node-v10.12.0-linux-x64.tar.gz -C $(Build.SourcesDirectory)/node
+            sudo rm -f /usr/local/bin/node
+            sudo rm -f /usr/local/bin/npm
+            sudo ln -s $(Build.SourcesDirectory)/node/node-v10.12.0-linux-x64/bin/node /usr/local/bin/node
+            sudo ln -s $(Build.SourcesDirectory)/node/node-v10.12.0-linux-x64/bin/npm  /usr/local/bin/npm
+            sudo chown -R root:root $(Build.SourcesDirectory)/node
+        displayName: prerequisites installation
+      - script: |
+            mvn clean install -P$(build_profile) -Dcdn-url=$(cdn_url)
+            mkdir static_content
+            unzip ./target/ui-artifact.zip -d static_content/
+        displayName: maven build
+      - task: AzureCLI@2
+        displayName: uploading static content
+        condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+        inputs:
+          azureSubscription: $(subcription_service)
+          scriptType: bash
+          scriptLocation: inlineScript
+          inlineScript: |
+            az storage blob upload-batch -s ./static_content/ -d '$web' --account-name $(storage_account)
+      - task: Docker@2
+        displayName: Login to ACR
+        condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+        inputs:
+          command: login
+          containerRegistry: $(azureContainerRegistry)
+      - task: Docker@2
+        displayName: build and Push image
+        condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+        inputs:
+          containerRegistry: |
+            $(azureContainerRegistry)
+          repository: $(image_repository)
+          command: buildAndPush
+          tags: |
+            $(Build.BuildId)
+  - job: AKS_deployment_to_UAT
+    dependsOn: maven_build_and_docker_build
+    displayName: deploy to AKS from UAT
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/UAT'))
+    steps:
+    - script: |
+          sed -i '/replicas/  s/1/$(webapp_replicas)/g' k8s-manifestfiles/wm_app_webapp.yml
+          sed -i '/image/   s/CONTAINER_IMAGE/$(image_registry)\/$(image_repository):tag/g' k8s-manifestfiles/wm_app_webapp.yml
+          sed -i '/path/ s/myapplication\/\*/$(application_context)\/\*/g' k8s-manifestfiles/wm_app_ingress_service.yml 
+      displayName: preparing webapp replicas and container image name
+    - task: KubernetesManifest@0
+      condition: eq(variables['database_container'], 'yes')
+      displayName: Deploy database and app container to UAT branch
+      inputs:
+        kubernetesServiceConnection: $(aks_service)
+        namespace: $(UAT_branch_namespace)
+        manifests: k8s-manifestfiles/*.yml
+        containers: |
+          $(image_registry)/$(image_repository):$(Build.BuildId)
+    - task: KubernetesManifest@0
+      condition: eq(variables['database_container'], 'no')
+      displayName: Deploy only app container to UAT branch
+      inputs:
+        kubernetesServiceConnection: $(aks_service)
+        namespace: $(UAT_branch_namespace)
+        manifests: k8s-manifestfiles/wm_app*.yml
+        containers: |
+          $(image_registry)/$(image_repository):$(Build.BuildId)
+  - job: AKS_deployment_to_prod
+    dependsOn: maven_build_and_docker_build
+    displayName: deploy to AKS from prod
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/prod'))
+    steps:
+    - script: |
+          sed -i '/replicas/  s/1/$(webapp_replicas)/g' k8s-manifestfiles/wm_app_webapp.yml
+          sed -i '/image/   s/CONTAINER_IMAGE/$(image_registry)\/$(image_repository):tag/g' k8s-manifestfiles/wm_app_webapp.yml
+          sed -i '/path/ s/myapplication\/\*/$(application_context)\/\*/g' k8s-manifestfiles/wm_app_ingress_service.yml
+      displayName: preparing webapp replicas and container image name
+    - task: KubernetesManifest@0
+      condition: eq(variables['database_container'], 'yes')
+      displayName: Deploy database and application container to PROD branche
+      inputs:
+        kubernetesServiceConnection: $(aks_service)
+        namespace: $(PROD_branch_namespace)
+        manifests: k8s-manifestfiles/*.yml
+        containers: |
+          $(image_registry)/$(image_repository):$(Build.BuildId)
+    - task: KubernetesManifest@0
+      condition: eq(variables['database_container'], 'no')
+      displayName: Deploy application container to PROD branche
+      inputs:
+        kubernetesServiceConnection: $(aks_service)
+        namespace: $(PROD_branch_namespace)
+        manifests: k8s-manifestfiles/wm_app*.yml
+        containers: |
+          $(image_registry)/$(image_repository):$(Build.BuildId)
+
+
+

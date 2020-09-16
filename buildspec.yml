@@ -1,0 +1,51 @@
+---
+version: 0.2
+phases:
+  install:
+    #If you use the Ubuntu standard image 2.0 or later, you must specify runtime-versions.
+    #If you specify runtime-versions and use an image other than Ubuntu standard image 2.0, the build fails.
+      runtime-versions:
+        java: openjdk8
+        python: 3.8
+      commands:
+        - wget https://nodejs.org/dist/v10.12.0/node-v10.12.0-linux-x64.tar.gz && mkdir $CODEBUILD_SRC_DIR/node && tar -xzf node-v10.12.0-linux-x64.tar.gz -C $CODEBUILD_SRC_DIR/node
+        - rm -f /usr/local/bin/node && rm -f /usr/local/bin/npm
+        - ln -s $CODEBUILD_SRC_DIR/node/node-v10.12.0-linux-x64/bin/node /usr/local/bin/node
+        - ln -s $CODEBUILD_SRC_DIR/node/node-v10.12.0-linux-x64/bin/npm  /usr/local/bin/npm
+        - chown -R root:root $CODEBUILD_SRC_DIR/node
+  pre_build:
+      commands:
+        - TAG="wavemaker.$CODEBUILD_BUILD_NUMBER.$Application_name"
+        - sed -i 's@CONTAINER_IMAGE@'"$REPOSITORY_URI:$TAG"'@' k8s-manifestfiles/wm_app_webapp.yml
+        - $(aws ecr get-login --no-include-email)
+        - export KUBECONFIG=$HOME/.kube/config
+        - export AWS_ACCESS_KEY_ID=$ACCESS_KEY
+        - export AWS_SECRET_ACCESS_KEY=$SECRET_KEY
+  build:
+    commands:
+      - mvn clean install -P$BUILD_PROFILE_NAME -Dcdn-url=$CDN_URL
+      - mkdir static_content
+      - unzip target/ui-artifact.zip -d static_content/
+      - aws s3 sync static_content/ $S3_BUCKET
+      - docker build --tag $REPOSITORY_URI:$TAG .
+
+  post_build:
+    commands:
+      - docker push $REPOSITORY_URI:$TAG
+      #- ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+     # - CREDENTIALS=$(aws sts assume-role --role-arn arn:aws:iam::${ACCOUNT_ID}:role/wmapp --role-session-name codebuild-wmapp --duration-seconds 900)
+     # - export AWS_ACCESS_KEY_ID="$(echo ${CREDENTIALS} | jq -r '.Credentials.AccessKeyId')"
+     # - export AWS_SECRET_ACCESS_KEY="$(echo ${CREDENTIALS} | jq -r '.Credentials.SecretAccessKey')"
+     # - export AWS_SESSION_TOKEN="$(echo ${CREDENTIALS} | jq -r '.Credentials.SessionToken')"
+     # - export AWS_EXPIRATION=$(echo ${CREDENTIALS} | jq -r '.Credentials.Expiration')
+      - aws eks update-kubeconfig --name $EKS_CLUSTER_NAME
+      - cd $CODEBUILD_SRC_DIR
+      - kubectl apply -f ./k8s-manifestfiles/
+cache:
+    paths:
+      - '/root/.m2/**/*'
+      - '/root/.npm/**/*'
+        
+
+  
+  

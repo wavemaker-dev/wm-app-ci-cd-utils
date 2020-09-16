@@ -1,0 +1,60 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wmappsvc
+spec:
+  type: ClusterIP
+  selector:
+     app: wm-app
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wmapp
+  labels:
+    app: wm-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wm-app
+  template:
+    metadata:
+      labels:
+        app: wm-app
+    spec:
+      containers:
+      - name: wmapp
+        image: CONTAINER_IMAGE
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+        - containerPort: 22
+        resources:
+          requests:
+            memory: "1024Mi"
+            cpu: "500m"
+          limits:
+            memory: "2048Mi"
+            cpu: "1000m"
+        env:
+        - name: wm.mysqlCloudHost
+          valueFrom:
+              configMapKeyRef:
+                key: wm.mysqlCloudHost
+                name: wmapp-config
+        - name: wm.mysqlCloudUsername
+          valueFrom:
+              configMapKeyRef:
+                key: wm.mysqlCloudUsername
+                name: wmapp-config
+        - name: wm.mysqlCloudPassword
+          valueFrom:
+              secretKeyRef:
+                key: MYSQL_ROOT_PASSWORD
+                name: mysqlsecret

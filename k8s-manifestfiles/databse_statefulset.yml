@@ -1,0 +1,57 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wmappdatabasesvc
+spec:
+  type: ClusterIP
+  selector:
+    app: wm-database
+  ports:
+  - port: 3306
+    targetPort: 3306
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: wm-database
+  labels:
+    app: wm-database
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wm-database
+  template:
+    metadata:
+      labels:
+        app: wm-database
+    spec:
+      containers:
+        - name: wm-database
+          image: mysql:5.6
+          env:
+          - name: MYSQL_ROOT_PASSWORD
+            valueFrom:
+                secretKeyRef:
+                  key: MYSQL_ROOT_PASSWORD
+                  name: mysqlsecret
+          ports:
+          - containerPort: 3306
+          volumeMounts:
+            - mountPath: /var/lib/mysql
+              name: mysqldata-volume
+  volumeClaimTemplates:
+    - metadata:
+        labels:
+          app: wm-database
+        name: "mysqldata-volume"
+      spec:
+        accessModes:
+        - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "10Gi"
+  serviceName: wmappdatabasesvc
+ 
