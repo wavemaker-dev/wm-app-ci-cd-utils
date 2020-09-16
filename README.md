@@ -2,7 +2,7 @@
 
 ## k8s-manifestfiles
 
-k8s-manifestfiles have reqired files for deploying a stateless application to kunernetes
+k8s-manifestfiles have reqired files for deploying a stateless application to kubernetes.
 
 - database_statefulset.yml is deploy default mysql database container for application  
 - wm_app_config_and_secret.yml have required configuration and secret like passwords deatils for application and database
@@ -10,9 +10,9 @@ k8s-manifestfiles have reqired files for deploying a stateless application to ku
 - wm_app_webapp.yml will deploy the container image of application in kubernetes pods
 
 
-## wavemaker-dockerfile
-
-The Dockerfile is used to build the application and deploy to tomcat container.The Dockerfile will do build using maven , jave and node prerequisites at one stage and deploy the application to tomcat in another stage
+## Dockerfile.build
+Multi Stage Docker file for sample build tomcat image with war file from sourccode
+The Dockerfile will do build using maven , java and node prerequisites at one stage and deploy the application to tomcat in another stage
 
 ## azure-pipelines.yml
 
@@ -24,8 +24,8 @@ buildspec.yml file native AWS automation file. we use this file in AWS codebuild
 
 ## Dockerfile
 
-The Dockerfile is used to deploy the application war file to tomcat container
+The Dockerfile is used to create webapp image with tomcat and war file inside it.
 
 ## wm_app_ci_cd.sh
 
-The wm_app_ci_Cd.sh script will help to deploy the application to Kubernetes service and with sonarqube analysis using ci cd tool jenkins
+The wm_app_ci_cd.sh script will help to deploy the application to EKS.
