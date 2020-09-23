@@ -15,8 +15,13 @@ phases:
         - chown -R root:root $CODEBUILD_SRC_DIR/node
   pre_build:
       commands:
-        - TAG="wavemaker.$CODEBUILD_BUILD_NUMBER.$Application_name"
+        - TAG="$CODEBUILD_BUILD_NUMBER"
         - sed -i 's@CONTAINER_IMAGE@'"$REPOSITORY_URI:$TAG"'@' k8s-manifestfiles/wm_app_webapp.yml
+        - sed -i '/replicas/  s/1/'"$webapp_replicas"'/g' k8s-manifestfiles/wm_app_webapp.yml
+        - sed -i 's@APP_NAME@'"$APPLICATION_NAME"'@g' k8s-manifestfiles/wm_app_webapp.yml
+        - sed -i 's@APP_NAME@'"$APPLICATION_NAME"'@g' k8s-manifestfiles/wm_app_config_and_secret.yml
+        - sed -i 's@APP_NAME@'"$APPLICATION_NAME"'@g' k8s-manifestfiles/database_statefulset.yml
+        - sed -i 's@APP_NAME@'"$APPLICATION_NAME"'@g' k8s-manifestfiles/wm_app_hpa.yml
         - $(aws ecr get-login --no-include-email)
         - export KUBECONFIG=$HOME/.kube/config
         - export AWS_ACCESS_KEY_ID=$ACCESS_KEY
@@ -26,7 +31,7 @@ phases:
       - mvn clean install -P$BUILD_PROFILE_NAME -Dcdn-url=$CDN_URL
       - mkdir static_content
       - unzip target/ui-artifact.zip -d static_content/
-      - aws s3 sync static_content/ $S3_BUCKET
+      - aws s3 sync static_content/ $S3_BUCKET  
       - docker build --tag $REPOSITORY_URI:$TAG .
 
   post_build:
@@ -40,7 +45,8 @@ phases:
      # - export AWS_EXPIRATION=$(echo ${CREDENTIALS} | jq -r '.Credentials.Expiration')
       - aws eks update-kubeconfig --name $EKS_CLUSTER_NAME
       - cd $CODEBUILD_SRC_DIR
-      - kubectl apply -f ./k8s-manifestfiles/
+      - |
+          if [ ! -z "$default_database" ]; then kubectl apply -f ./k8s-manifestfiles/;  elif [ -z "$default_database" ]; then kubectl apply -f k8s-manifestfiles/wm_app_webapp.yml && kubectl apply -f k8s-manifestfiles/wm_app_hpa.yml && kubectl apply -f k8s-manifestfiles/wm_app_config_and_secret.yml; fi
 cache:
     paths:
       - '/root/.m2/**/*'
