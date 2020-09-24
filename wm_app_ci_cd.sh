@@ -4,7 +4,7 @@ file_location="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd $file_location
 
 
-while getopts p:i:c:o:f:b:h:l:L:C:s:e:a:r:P:B:d:A: options
+while getopts p:i:c:o:f:b:h:l:L:C:s:e:a:r:P:B:d:A:R:n: options
 do 
     case "${options}" in
        # j) JOB_NAME=${OPTARG};;
@@ -26,6 +26,8 @@ do
         B) browser=${OPTARG};;
         d) default_database=${OPTARG};;
         A) app_context=${OPTARG};;
+        R) webapp_replicas=${OPTARG};
+        n) project_name=${OPTARG};
 
 
     esac
@@ -54,6 +56,8 @@ kubernetes_deploy() {
     docker tag $docker_image_name $docker_registry_uri:$BUILD_NUMBER
     docker push $docker_registry_uri:$BUILD_NUMBER
     sed -i 's@CONTAINER_IMAGE@'"$docker_registry_uri:$BUILD_NUMBER"'@' k8s-manifestfiles/wm_app_webapp.yml
+    sed -i '/replicas/  s/1/'"$webapp_replicas"'/g' k8s-manifestfiles/wm_app_webapp.yml
+    sed -i 's/APP_NAME/'"$project_name"'/g' k8s-manifestfiles/*
     if [ "$default_database" == "yes" ]
     then
         kubectl apply -f ./k8s-manifestfiles/
@@ -62,7 +66,7 @@ kubernetes_deploy() {
         kubectl apply -f k8-manifestfiles/wm_app_webapp.yml
         kubectl apply -f k8-manifestfiles/wm_app_loadbalancer.yml
     fi
-    LoadBalancer_url=$(kubectl get svc wmapploadbalancersvc --output="jsonpath={.status.loadBalancer.ingress[0].hostname}")
+    LoadBalancer_url=$(kubectl get svc wmapploadbalancersvc-$project_name --output="jsonpath={.status.loadBalancer.ingress[0].hostname}")
     echo "aws ELB access url :  http://$LoadBalancer_url/$app_context"
 }
 

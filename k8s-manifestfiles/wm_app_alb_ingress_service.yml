@@ -26,7 +26,7 @@ spec:
         paths:
           - path: /myapplication/*
             backend:
-              serviceName: webservice
+              serviceName: webservice-APP_NAME
               servicePort: 8080
 
 
