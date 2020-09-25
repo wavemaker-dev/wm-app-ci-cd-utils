@@ -10,7 +10,7 @@ metadata:
     nginx.ingress.kubernetes.io/use-regex: "true"
 spec:
   tls:
-  - secretName: mytlssecret
+  - secretName: MY_TLS_SECRET
   rules:
     - host: kibana.mydomain.com
       http:
