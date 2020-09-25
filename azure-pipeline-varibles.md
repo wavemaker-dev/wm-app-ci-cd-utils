@@ -20,7 +20,7 @@
 - prod_container_blob: prod env container name
 - uat_env_hostname: host name for uat env , example : myuatapp.domain.com
 - tls_secret_name: tls secret name for host domain SSL configurations
-- unique_name_for_application: name of application for uniqueness , name must be small letters and doesn't include underscore(_)
+- unique_name_for_application: name of application for uniqueness , name must be small letters and doesn't include underscore(_) and must be **unique across cluster**
 - prod_env_host_name: prod env host name , example : myprodapp.domain.com
 - website_private_key_filename: website private key filename in secure files
 - website_bundle_certificate_filename: website bundle certificate and CA cert combination file name in secure files
