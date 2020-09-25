@@ -156,6 +156,15 @@ stages:
         kubernetesServiceEndpoint: $(aks_service)
         command: create
         arguments: secret tls $(tls_secretname)  --namespace $(UAT_branch_namespace)  --key $(websiteprivatekey.secureFilePath)  --cert $(websitebundle.secureFilePath)
+
+    - task: Kubernetes@1
+      displayName: creating TLS secret in default namespace observability ingress service SSL
+      inputs:
+        connectionType: Kubernetes Service Connection
+        kubernetesServiceEndpoint: $(aks_service)
+        command: create
+        arguments: secret tls $(tls_secretname)  --namespace default  --key $(websiteprivatekey.secureFilePath)  --cert $(websitebundle.secureFilePath)
+
     - task: KubernetesManifest@0
       condition: eq(variables['database_container'], 'yes')
       displayName: Deploy database  to UAT branch env
