@@ -1,5 +1,5 @@
 ---
-apiVersion: autoscaling/v2beta1 #autoscaling/v2beta1
+apiVersion: autoscaling/v2beta2 #autoscaling/v2beta1 v2beta2
 kind: HorizontalPodAutoscaler
 metadata:
   name: wmapp-hpa-APP_NAME
@@ -17,10 +17,14 @@ spec:
   # given metric across all pods controlled by the autoscaling target
   - type: Resource
     resource:
-      name: memory 
-      targetAverageValue: 1000Mi 
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 70
   - type: Resource
     resource:
-      name: cpu 
-      targetAverageUtilization: 70
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
 
