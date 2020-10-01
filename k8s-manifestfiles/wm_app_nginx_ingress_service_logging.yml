@@ -10,23 +10,23 @@ metadata:
     nginx.ingress.kubernetes.io/use-regex: "true"
 spec:
   tls:
-  - secretName: MY_TLS_SECRET
+  - secretName: MYTLS_SECRET_NAME
   rules:
-    - host: kibana.mydomain.com
+    - host: kibana-aks.mydomain.com
       http:
        paths:
        - path: /*
          backend:
            serviceName: kibana
            servicePort: 80
-    - host: grafana.mydomain.com
+    - host: grafana-aks.mydomain.com
       http:
        paths:
        - path: /*
          backend:
            serviceName: grafana
            servicePort: 80
-    - host: prom.mydomain.com
+    - host: prom-aks.mydomain.com
       http:
        paths:
        - path: /*

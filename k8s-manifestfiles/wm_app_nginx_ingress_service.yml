@@ -9,12 +9,12 @@ metadata:
     nginx.ingress.kubernetes.io/use-regex: "true"
 spec:
   tls:
-  - secretName: mytlssecret
+  - secretName: MYTLS_SECRET
   rules:
     - host: testapp.com
       http:
        paths:
-       - path: /myapplication/*
+       - path: /MY_APPLICATION/*
          backend:
            serviceName: webservice-APP_NAME
            servicePort: 8080
