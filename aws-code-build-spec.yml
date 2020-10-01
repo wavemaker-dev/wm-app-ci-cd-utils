@@ -41,10 +41,10 @@ phases:
       - aws eks update-kubeconfig --name $EKS_CLUSTER_NAME
       - cd $CODEBUILD_SRC_DIR
       - |
-          if [ ! -z "$default_database" ]; then kubectl apply -f k8s-manifestfiles/database_statefulset.yml && kubectl apply -f k8s-manifestfiles/wm_app_webapp.yml && kubectl apply -f k8s-manifestfiles/wm_app_hpa.yml && kubectl apply -f k8s-manifestfiles/wm_app_config_and_secret.yml; fi
+          if [ ! -z "$default_database" ]; then kubectl apply -f k8s-manifestfiles/database_statefulset.yml -n $NAME_SPACE && kubectl apply -f k8s-manifestfiles/wm_app_webapp.yml -n $NAME_SPACE && kubectl apply -f k8s-manifestfiles/wm_app_hpa.yml -n $NAME_SPACE && kubectl apply -f k8s-manifestfiles/wm_app_config_and_secret.yml -n $NAME_SPACE; fi
           
       - |
-          if [ -z "$default_database" ]; then kubectl apply -f k8s-manifestfiles/wm_app_webapp.yml && kubectl apply -f k8s-manifestfiles/wm_app_hpa.yml && kubectl apply -f k8s-manifestfiles/wm_app_config_and_secret.yml; fi
+          if [ -z "$default_database" ]; then kubectl apply -f k8s-manifestfiles/wm_app_webapp.yml -n $NAME_SPACE && kubectl apply -f k8s-manifestfiles/wm_app_hpa.yml -n $NAME_SPACE && kubectl apply -f k8s-manifestfiles/wm_app_config_and_secret.yml -n $NAME_SPACE; fi
 cache:
     paths:
       - '/root/.m2/**/*'
@@ -63,3 +63,4 @@ cache:
 ## S3_BUCKET
 ## EKS_CLUSTER_NAME
 ## default_database
+## NAME_SPACE
