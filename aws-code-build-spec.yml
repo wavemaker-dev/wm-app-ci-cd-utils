@@ -28,7 +28,8 @@ phases:
         - export AWS_SECRET_ACCESS_KEY=$SECRET_KEY
   build:
     commands:
-      - mvn clean install -P$BUILD_PROFILE_NAME -Dcdn-url=$CDN_URL
+      - mvn_cdn_url="$CDN_URL/$CODEBUILD_BUILD_NUMBER/ng-bundle/"
+      - mvn clean install -P$BUILD_PROFILE_NAME -Dcdn-url=$mvn_cdn_url
       - mkdir static_content
       - unzip target/ui-artifact.zip -d static_content/
       - aws s3 sync static_content/ $S3_BUCKET/$CODEBUILD_BUILD_NUMBER
@@ -51,4 +52,14 @@ cache:
         
 
   
-  
+# variables
+## REPOSITORY_URI
+## webapp_replicas
+## APPLICATION_NAME
+## ACCESS_KEY
+## SECRET_KEY
+## BUILD_PROFILE_NAME
+## CDN_URL >> https://cdnurl.net/s3-foldername
+## S3_BUCKET
+## EKS_CLUSTER_NAME
+## default_database
