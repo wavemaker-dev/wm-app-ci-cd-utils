@@ -59,7 +59,7 @@ azure-pipelines.yml file is used to automate the ci-cd process using Azure resou
 
 ## aws-code-build-spec.yml
 
-buildspec.yml file native AWS automation file. we use this file in AWS codebuild to build application by installing prerequsiites and deploy to AWS EKS service.
+aws-code-build-spec.yml file native AWS automation file. we use this file in AWS codebuild to build application by installing prerequsiites and deploy to AWS EKS service.
 
 ## Dockerfile
 
