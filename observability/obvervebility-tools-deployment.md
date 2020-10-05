@@ -12,11 +12,10 @@
   pos_file /var/log/<posfilename>.log.pos
   tag <tag>
   read_from_head true
-  format multiline
-  format_firstline /[0-9].[0-9].[0-9].[0-9]/
-  format1 /^(?<datetime>[0-9]{2} [A-Za-z]{3} [0-9]{4} [0-9]{2}:[0-9]{2}:[0-9]{2},[0-9]{3}) (?<log-level>[A-Z]*) (?<thread>[^ ]*)  \[(?<classname>.*)\] - (?<message>.*)$/
   <parse>
-    @type "#{ENV['FLUENT_CONTAINER_TAIL_PARSER_TYPE'] || 'json'}"
+    @type multiline 
+    format_firstline /[0-9].[0-9].[0-9].[0-9]/
+    format1 /(?<log-level>[^ ]*) (?<thread>[^ ]*) \[(?<classname>.*)\] - (?<message>.*)$/
     time_format %Y-%m-%dT%H:%M:%S.%NZ
   </parse>
 </source>
@@ -50,7 +49,7 @@ kubectl apply -f elasticsearch-deployment.yml
 
 ## Kibana deployment
 
-- Deploy kibana using helm charts, use the following helm command deploy kibana
+- Deploy kibana using helm charts, use the following helm command to deploy kibana
 
 ```shell
 helm install kibana stable/kibana  -f kibana-values.yml --set service.type=NodePort --set service.nodePort=<port-no> --set service.externalPort=80
@@ -61,7 +60,7 @@ helm install kibana stable/kibana  -f kibana-values.yml --set service.type=NodeP
 - Use the following command to Deploy prometheus by using helm chart
 
 ```shell
-helm install prometheus stable/prometheus -f values.yml --namespace default --set alertmanager.persistentVolume.storageClass="<storage-class-name" --set server.persistentVolume.storageClass="storage-class-name" --set server.service.type=NodePort --set server.service.nodePort=<nodeport>
+helm install prometheus stable/prometheus -f values.yml --namespace default --set alertmanager.persistentVolume.storageClass="storage-class-name" --set server.persistentVolume.storageClass="storage-class-name" --set server.service.type=NodePort --set server.service.nodePort=<nodeport>
 ```
 
 ## Grafana deployment
