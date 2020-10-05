@@ -57,7 +57,7 @@ The Dockerfile will do build using maven , java and node prerequisites at one st
 
 azure-pipelines.yml file is used to automate the ci-cd process using Azure resources.The will trigger azure pipeline for deploy application to AZURE KUBERNETES SERVICE
 
-## buildspec.yml
+## aws-code-build-spec.yml
 
 buildspec.yml file native AWS automation file. we use this file in AWS codebuild to build application by installing prerequsiites and deploy to AWS EKS service.
 
