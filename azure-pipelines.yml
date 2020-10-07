@@ -158,6 +158,7 @@ stages:
         kubernetesServiceEndpoint: $(aks_service)
         command: create
         arguments: secret tls $(tls_secretname)  --namespace $(UAT_branch_namespace)  --key $(websiteprivatekey.secureFilePath)  --cert $(websitebundle.secureFilePath)
+      continueOnError: true
 
     - task: Kubernetes@1
       displayName: creating TLS secret in default namespace observability ingress service SSL
@@ -166,6 +167,7 @@ stages:
         kubernetesServiceEndpoint: $(aks_service)
         command: create
         arguments: secret tls $(tls_secretname)  --namespace default  --key $(websiteprivatekey.secureFilePath)  --cert $(websitebundle.secureFilePath)
+      continueOnError: true
 
     - task: KubernetesManifest@0
       condition: eq(variables['database_container'], 'yes')
@@ -234,7 +236,8 @@ stages:
         connectionType: Kubernetes Service Connection
         kubernetesServiceEndpoint: $(aks_service)
         command: create
-        arguments: secret tls $(tls_secretname)  --namespace $(PROD_branch_namespace)  --key $(websiteprivatekey.secureFilePath)  --cert $(websitebundle.secureFilePath) 
+        arguments: secret tls $(tls_secretname)  --namespace $(PROD_branch_namespace)  --key $(websiteprivatekey.secureFilePath)  --cert $(websitebundle.secureFilePath)
+      continueOnError: true 
     - task: KubernetesManifest@0
       condition: eq(variables['database_container'], 'yes')
       displayName: Deploy database and application container to PROD branche
