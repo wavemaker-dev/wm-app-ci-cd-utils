@@ -40,8 +40,10 @@ variables:
   tls_secretname: $(tls_secret_name)
   project_name: $(unique_name_for_application)
   prod_hostname: $(prod_env_host_name)
-  website_private_key: $(website_private_key_filename)
-  website_bundle_crt: $(website_bundle_certificate_filename)
+  uat_website_private_key: $(uat_website_private_key_filename)
+  uat_website_bundle_crt: $(uat_website_bundle_certificate_filename)
+  prod_website_private_key: $(prod_website_private_key_filename)
+  prod_website_bundle_crt: $(prod_website_bundle_certificate_filename)
 pool:
     vmImage: 'Ubuntu-16.04'
 stages:
@@ -74,14 +76,14 @@ stages:
         condition: and(succeeded(), eq(variables['Build.Reason'], 'PullRequest'))
 
       - script: |
-            mvn clean install -P$(uat_build_profile) -Dcdn-url=$(uat_cdn_url)/$(Build.BuildId)/ng-bundle/
+            mvn clean install -P$(uat_build_profile) -Dcdn-url=$(uat_cdn_url)
             mkdir static_content
             unzip ./target/ui-artifact.zip -d static_content/
         displayName: maven build on UAT branch
         condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/UAT'))
 
       - script: |
-            mvn clean install -P$(prod_build_profile) -Dcdn-url=$(prod_cdn_url)/$(Build.BuildId)/ng-bundle/
+            mvn clean install -P$(prod_build_profile) -Dcdn-url=$(prod_cdn_url)
             mkdir static_content
             unzip ./target/ui-artifact.zip -d static_content/
         displayName: maven build on prod branch
@@ -95,7 +97,7 @@ stages:
           scriptType: bash
           scriptLocation: inlineScript
           inlineScript: |
-            az storage blob upload-batch -s ./static_content/ -d $(uat_blob) --destination-path $(Build.BuildId) --account-name $(storage_account)
+            az storage blob upload-batch -s ./static_content/ -d $(uat_blob) --account-name $(storage_account)
       
       - task: AzureCLI@2
         displayName: uploading static content
@@ -105,7 +107,7 @@ stages:
           scriptType: bash
           scriptLocation: inlineScript
           inlineScript: |
-            az storage blob upload-batch -s ./static_content/ -d $(prod_blob) --destination-path $(Build.BuildId) --account-name $(storage_account)
+            az storage blob upload-batch -s ./static_content/ -d $(prod_blob) --account-name $(storage_account)
 
       - task: Docker@2
         displayName: Login to ACR
@@ -143,12 +145,12 @@ stages:
       name: websitebundle
       displayName: 'Download website certificate'
       inputs:
-        secureFile: '$(website_bundle_crt)'
+        secureFile: '$(uat_website_bundle_crt)'
     - task: DownloadSecureFile@1
       name: websiteprivatekey
       displayName: 'Download website private key'
       inputs:
-        secureFile: '$(website_private_key)'
+        secureFile: '$(uat_website_private_key)'
     - task: Kubernetes@1
       displayName: creating TLS secret in UAT env
       inputs:
@@ -164,7 +166,6 @@ stages:
         kubernetesServiceEndpoint: $(aks_service)
         command: create
         arguments: secret tls $(tls_secretname)  --namespace default  --key $(websiteprivatekey.secureFilePath)  --cert $(websitebundle.secureFilePath)
-      continueOnError: true
 
     - task: KubernetesManifest@0
       condition: eq(variables['database_container'], 'yes')
@@ -221,21 +222,19 @@ stages:
       name: websitebundle
       displayName: 'Download website certificate'
       inputs:
-        secureFile: 'website-bundle.crt'
+        secureFile: '$(prod_website_bundle_crt)'
     - task: DownloadSecureFile@1
       name: websiteprivatekey
       displayName: 'Download website private key'
       inputs:
-        secureFile: 'website.key'
+        secureFile: '$(prod_website_private_key)'
     - task: Kubernetes@1
       displayName: creating TLS secret in prod env
       inputs:
         connectionType: Kubernetes Service Connection
         kubernetesServiceEndpoint: $(aks_service)
         command: create
-        arguments: secret tls $(tls_secretname)  --namespace $(PROD_branch_namespace)  --key $(websiteprivatekey.secureFilePath)  --cert $(websitebundle.secureFilePath)
-      continueOnError: true 
-
+        arguments: secret tls $(tls_secretname)  --namespace $(PROD_branch_namespace)  --key $(websiteprivatekey.secureFilePath)  --cert $(websitebundle.secureFilePath) 
     - task: KubernetesManifest@0
       condition: eq(variables['database_container'], 'yes')
       displayName: Deploy database and application container to PROD branche
@@ -252,7 +251,6 @@ stages:
         manifests: k8s-manifestfiles/wm_app_webapp.yml
         containers: |
           $(image_registry)/$(image_repository):$(Build.BuildId)
-          
     - task: KubernetesManifest@0
       displayName: Deploying application congig and secrets to PROD branch
       inputs:
