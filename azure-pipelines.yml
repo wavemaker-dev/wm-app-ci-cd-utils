@@ -2,7 +2,7 @@ name: wavemaker cicd
 trigger:
   branches:
     include:
-    - prod
+    - PROD
     - UAT
     exclude:
     - master
@@ -17,7 +17,8 @@ trigger:
    # - UAT
 variables: 
   ## Add this under variables section in the pipeline
-  image_repository: $(repository_name)
+  uat_image_repository: $(uat_repository_name)
+  prod_image_repository: $(prod_repository_name)
   azureContainerRegistry: $(acr_service_name)
   aks_service: $(aks_service_name)
   image_registry: $(acr_registry)
@@ -121,7 +122,7 @@ stages:
         inputs:
           containerRegistry: |
             $(azureContainerRegistry)
-          repository: $(image_repository)
+          repository: $(uat_image_repository)
           command: buildAndPush
           tags: |
             $(Build.BuildId)
@@ -133,7 +134,7 @@ stages:
     steps:
     - script: |
           sed -i '/replicas/  s/1/$(webapp_replicas)/g' k8s-manifestfiles/wm_app_webapp.yml
-          sed -i '/image/   s/CONTAINER_IMAGE/$(image_registry)\/$(image_repository):tag/g' k8s-manifestfiles/wm_app_webapp.yml
+          sed -i '/image/   s/CONTAINER_IMAGE/$(image_registry)\/$(uat_image_repository):tag/g' k8s-manifestfiles/wm_app_webapp.yml
           sed -i '/path/   s/MY_APPLICATION\/\*/$(application_context)\/\*/g' k8s-manifestfiles/wm_app_nginx_ingress_service.yml
           sed -i '/host/   s/testapp.com/$(uat_hostname)/g' k8s-manifestfiles/wm_app_nginx_ingress_service.yml
           sed -i '/secretName/  s/MYTLS_SECRET/$(tls_secretname)/g' k8s-manifestfiles/wm_app_nginx_ingress_service.yml
@@ -184,7 +185,7 @@ stages:
         namespace: $(UAT_branch_namespace)
         manifests: k8s-manifestfiles/wm_app_webapp.yml
         containers: |
-          $(image_registry)/$(image_repository):$(Build.BuildId)
+          $(image_registry)/$(uat_image_repository):$(Build.BuildId)
     - task: KubernetesManifest@0
       displayName: Deploy application config and secrets to UAT branch env
       inputs:
@@ -212,7 +213,7 @@ stages:
     steps:
     - script: |
           sed -i '/replicas/  s/1/$(webapp_replicas)/g' k8s-manifestfiles/wm_app_webapp.yml
-          sed -i '/image/   s/CONTAINER_IMAGE/$(image_registry)\/$(image_repository):tag/g' k8s-manifestfiles/wm_app_webapp.yml
+          sed -i '/image/   s/CONTAINER_IMAGE/$(image_registry)\/$(prod_image_repository):tag/g' k8s-manifestfiles/wm_app_webapp.yml
           sed -i '/path/   s/MY_APPLICATION\/\*/$(application_context)\/\*/g' k8s-manifestfiles/wm_app_nginx_ingress_service.yml
           sed -i '/host/   s/testapp.com/$(prod_hostname)/g' k8s-manifestfiles/wm_app_nginx_ingress_service.yml
           sed -i '/secretName/  s/MYTLS_SECRET/$(tls_secretname)/g' k8s-manifestfiles/wm_app_nginx_ingress_service.yml
@@ -253,7 +254,7 @@ stages:
         namespace: $(PROD_branch_namespace)
         manifests: k8s-manifestfiles/wm_app_webapp.yml
         containers: |
-          $(image_registry)/$(image_repository):$(Build.BuildId)
+          $(image_registry)/$(prod_image_repository):$(Build.BuildId)
     - task: KubernetesManifest@0
       displayName: Deploying application congig and secrets to PROD branch
       inputs:

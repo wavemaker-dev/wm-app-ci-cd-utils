@@ -1,6 +1,7 @@
 # azure pipeline variables
 
-- **repository_name**: image repository name of webapp, example : webapp
+- **uat_repository_name**: image repository name of webapp in uat environment, example : uatwebapp
+- **prod_repository_name**: image repository name of webapp prod environment  , example prodwebapp
 - **acr_service_name**: azure container registry service name
 - **aks_service_name**: azure kubernetes service name
 - **acr_registry**: name if azure container registry, example mypipeline.azurecr.io
