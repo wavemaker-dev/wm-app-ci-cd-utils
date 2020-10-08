@@ -88,7 +88,7 @@ stages:
             mkdir static_content
             unzip ./target/ui-artifact.zip -d static_content/
         displayName: maven build on prod branch
-        condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/prod'))
+        condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/PROD'))
 
       - task: AzureCLI@2
         displayName: uploading static content
@@ -102,7 +102,7 @@ stages:
       
       - task: AzureCLI@2
         displayName: uploading static content
-        condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/prod'))
+        condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/PROD'))
         inputs:
           azureSubscription: $(subcription_service)
           scriptType: bash
@@ -171,6 +171,13 @@ stages:
       continueOnError: true
 
     - task: KubernetesManifest@0
+      displayName: Deploy application config and secrets to UAT branch env
+      inputs:
+        kubernetesServiceConnection: $(aks_service)
+        namespace: $(UAT_branch_namespace)
+        manifests: k8s-manifestfiles/wm_app_config_and_secret.yml
+
+    - task: KubernetesManifest@0
       condition: eq(variables['database_container'], 'yes')
       displayName: Deploy database  to UAT branch env
       inputs:
@@ -186,12 +193,7 @@ stages:
         manifests: k8s-manifestfiles/wm_app_webapp.yml
         containers: |
           $(image_registry)/$(uat_image_repository):$(Build.BuildId)
-    - task: KubernetesManifest@0
-      displayName: Deploy application config and secrets to UAT branch env
-      inputs:
-        kubernetesServiceConnection: $(aks_service)
-        namespace: $(UAT_branch_namespace)
-        manifests: k8s-manifestfiles/wm_app_config_and_secret.yml
+          
     - task: KubernetesManifest@0
       displayName: Deploy horizantal pod autoscale to UAT branch env
       inputs:
@@ -209,7 +211,7 @@ stages:
   - job: AKS_deployment_to_prod
     dependsOn: maven_build_and_docker_build
     displayName: deploy to AKS from prod
-    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/prod'))
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/PROD'))
     steps:
     - script: |
           sed -i '/replicas/  s/1/$(webapp_replicas)/g' k8s-manifestfiles/wm_app_webapp.yml
@@ -238,7 +240,15 @@ stages:
         kubernetesServiceEndpoint: $(aks_service)
         command: create
         arguments: secret tls $(tls_secretname)  --namespace $(PROD_branch_namespace)  --key $(websiteprivatekey.secureFilePath)  --cert $(websitebundle.secureFilePath)
-      continueOnError: true 
+      continueOnError: true
+      
+    - task: KubernetesManifest@0
+      displayName: Deploying application congig and secrets to PROD branch
+      inputs:
+        kubernetesServiceConnection: $(aks_service)
+        namespace: $(PROD_branch_namespace)
+        manifests: k8s-manifestfiles/wm_app_config_and_secret.yml
+
     - task: KubernetesManifest@0
       condition: eq(variables['database_container'], 'yes')
       displayName: Deploy database and application container to PROD branche
@@ -255,12 +265,7 @@ stages:
         manifests: k8s-manifestfiles/wm_app_webapp.yml
         containers: |
           $(image_registry)/$(prod_image_repository):$(Build.BuildId)
-    - task: KubernetesManifest@0
-      displayName: Deploying application congig and secrets to PROD branch
-      inputs:
-        kubernetesServiceConnection: $(aks_service)
-        namespace: $(PROD_branch_namespace)
-        manifests: k8s-manifestfiles/wm_app_config_and_secret.yml
+
     - task: KubernetesManifest@0
       displayName: Deploy application horizantal pod autoscaler to PROD branch
       inputs:
