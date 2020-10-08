@@ -118,7 +118,7 @@ stages:
           containerRegistry: $(azureContainerRegistry)
       - task: Docker@2
         displayName: build and Push image
-        condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+        condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/UAT'))
         inputs:
           containerRegistry: |
             $(azureContainerRegistry)
@@ -126,6 +126,18 @@ stages:
           command: buildAndPush
           tags: |
             $(Build.BuildId)
+      
+      - task: Docker@2
+        displayName: build and Push image
+        condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/PROD'))
+        inputs:
+          containerRegistry: |
+            $(azureContainerRegistry)
+          repository: $(prod_image_repository)
+          command: buildAndPush
+          tags: |
+            $(Build.BuildId)
+      
 
   - job: AKS_deployment_to_UAT
     dependsOn: maven_build_and_docker_build
@@ -193,7 +205,7 @@ stages:
         manifests: k8s-manifestfiles/wm_app_webapp.yml
         containers: |
           $(image_registry)/$(uat_image_repository):$(Build.BuildId)
-          
+
     - task: KubernetesManifest@0
       displayName: Deploy horizantal pod autoscale to UAT branch env
       inputs:
