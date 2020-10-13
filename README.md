@@ -1,4 +1,4 @@
-# WaveMaker ci-cd utils
+# WaveMaker CI/CD utils
 
 ## cluster-auto-scaler
 
