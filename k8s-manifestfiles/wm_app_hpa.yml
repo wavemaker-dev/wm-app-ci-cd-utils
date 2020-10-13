@@ -11,7 +11,7 @@ spec:
     kind: Deployment
     name: wmapp-APP_NAME   # name of deployment
   minReplicas: 1
-  maxReplicas: 15
+  maxReplicas: 1
   metrics:
   # use a "Pods" metric, which takes the average of the
   # given metric across all pods controlled by the autoscaling target
