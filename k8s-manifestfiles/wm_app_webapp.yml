@@ -46,6 +46,21 @@ spec:
         prometheus.io/port: '8080'
         prometheus.io/scheme: 'http'
     spec:
+      tolerations: 
+      - key: "spotInstance" 
+        operator: "Equal" 
+        value: "true" 
+        effect: "PreferNoSchedule"
+      affinity:
+        nodeAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              preference:
+                matchExpressions:
+                - key: lifecycle
+                  operator: In
+                  values:
+                  - Ec2Spot
       containers:
       - name: wmapp
         image: CONTAINER_IMAGE

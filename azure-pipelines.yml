@@ -1,4 +1,5 @@
-#version 1.0 13-10-2020
+# version 1.0 10-20-2020
+
 name: wavemaker cicd
 trigger:
   branches:
@@ -148,6 +149,7 @@ stages:
     - script: |
           sed -i '/replicas/  s/1/$(webapp_replicas)/g' k8s-manifestfiles/wm_app_webapp.yml
           sed -i '/image/   s/CONTAINER_IMAGE/$(image_registry)\/$(uat_image_repository):tag/g' k8s-manifestfiles/wm_app_webapp.yml
+          sed -i '49,63 s/^/#/' k8s-manifestfiles/wm_app_webapp.yml
           sed -i '/path/   s/MY_APPLICATION\/\*/$(application_context)\/\*/g' k8s-manifestfiles/wm_app_nginx_ingress_service.yml
           sed -i '/host/   s/testapp.com/$(uat_hostname)/g' k8s-manifestfiles/wm_app_nginx_ingress_service.yml
           sed -i '/secretName/  s/MYTLS_SECRET/$(tls_secretname)/g' k8s-manifestfiles/wm_app_nginx_ingress_service.yml
@@ -172,15 +174,6 @@ stages:
         kubernetesServiceEndpoint: $(aks_service)
         command: create
         arguments: secret tls $(tls_secretname)  --namespace $(UAT_branch_namespace)  --key $(websiteprivatekey.secureFilePath)  --cert $(websitebundle.secureFilePath)
-      continueOnError: true
-
-    - task: Kubernetes@1
-      displayName: creating TLS secret in default namespace observability ingress service SSL
-      inputs:
-        connectionType: Kubernetes Service Connection
-        kubernetesServiceEndpoint: $(aks_service)
-        command: create
-        arguments: secret tls $(tls_secretname)  --namespace default  --key $(websiteprivatekey.secureFilePath)  --cert $(websitebundle.secureFilePath)
       continueOnError: true
 
     - task: KubernetesManifest@0
@@ -228,6 +221,7 @@ stages:
     steps:
     - script: |
           sed -i '/replicas/  s/1/$(webapp_replicas)/g' k8s-manifestfiles/wm_app_webapp.yml
+          sed -i '49,63 s/^/#/' k8s-manifestfiles/wm_app_webapp.yml
           sed -i '/image/   s/CONTAINER_IMAGE/$(image_registry)\/$(prod_image_repository):tag/g' k8s-manifestfiles/wm_app_webapp.yml
           sed -i '/path/   s/MY_APPLICATION\/\*/$(application_context)\/\*/g' k8s-manifestfiles/wm_app_nginx_ingress_service.yml
           sed -i '/host/   s/testapp.com/$(prod_hostname)/g' k8s-manifestfiles/wm_app_nginx_ingress_service.yml
