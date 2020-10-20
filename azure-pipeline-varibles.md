@@ -15,8 +15,8 @@
 - **uat_namespace**: namespace of UAT branch for deploy application
 - **application_name**: name of the application for ingress service context for doing path based routing
 
-- **uat_env_cdn_url** : cdn url for uat env , example: `https://myuatcdn.azureedge.net/myuatcontainer/ng-bundle/`
-- **prod_env_cdn_url** : cdn url for prod env, example: `https://myprodcdn.azureedge.net/myprodcontainer/ng-bundle/`
+- **uat_env_cdn_url** : cdn url for uat env , example: `https://myuatcdn.azureedge.net/myuatcontainer`
+- **prod_env_cdn_url** : cdn url for prod env, example: `https://myprodcdn.azureedge.net/myprodcontainer`
 - **uat_container_blob**: uat env container name
 - **prod_container_blob**: prod env container name
 - **uat_env_hostname**: host name for uat env , example : myuatapp.domain.com
