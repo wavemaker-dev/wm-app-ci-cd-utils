@@ -1,4 +1,4 @@
-# version 1.0 10-20-2020
+# version 1.0 24-12-2020
 
 name: wavemaker cicd
 trigger:
@@ -6,11 +6,19 @@ trigger:
     include:
     - PROD
     - UAT
+    exclude:
     - master
 
+
+#pr:
+ # branches:
+   # include:
+  #  - master
+   # exclude:
+   # - prod
+   # - UAT
 variables: 
-  # Add these under variables section in the azure pipeline
-  demo_image_repository: $(demo_repository_name)
+  ## Add this under variables section in the pipeline
   uat_image_repository: $(uat_repository_name)
   prod_image_repository: $(prod_repository_name)
   azureContainerRegistry: $(acr_service_name)
@@ -22,21 +30,16 @@ variables:
   MAVEN_OPTS: '-Dmaven.repo.local=$(MAVEN_CACHE_FOLDER)'
   uat_build_profile: $(uat_maven_build_profile)
   prod_build_profile: $(prod_maven_build_profile)
-  demo_build_profile: $(demo_maven_build_profile)
   webapp_replicas: $(no_of_webapp_repicas)
   database_container: $(default_database_container)
   PROD_branch_namespace: $(prod_namespace)
   UAT_branch_namespace: $(uat_namespace)
-  demo_namespace: $(demo_env_namespace)
   application_context: $(application_name)
   uat_cdn_url: $(uat_env_cdn_url)
   prod_cdn_url: $(prod_env_cdn_url)
-  demo_cdn_url: $(demo_env_cdn_url)
   uat_blob: $(uat_container_blob)
   prod_blob: $(prod_container_blob)
-  demo_blob: $(demo_container_blob)
   uat_hostname: $(uat_env_hostname)
-  demo_hostname: $(demo_env_hostname)
   tls_secretname: $(tls_secret_name)
   project_name: $(unique_name_for_application)
   prod_hostname: $(prod_env_host_name)
@@ -44,15 +47,13 @@ variables:
   uat_website_bundle_crt: $(uat_website_bundle_certificate_filename)
   prod_website_private_key: $(prod_website_private_key_filename)
   prod_website_bundle_crt: $(prod_website_bundle_certificate_filename)
-  demo_website_private_key: $(demo_website_private_key_filename)
-  demo_website_bundle_crt: $(demo_website_bundle_certificate_filename)  
 pool:
-    vmImage: 'ubuntu-18.04'
+    vmImage: 'Ubuntu-16.04'
 stages:
 - stage: build_and_deploy
   jobs:
   - job: maven_build_and_docker_build
-    displayName: Maven Build and Docker Image Build
+    displayName: maven build and docker image build
     steps:
       - task: Cache@2
         inputs:
@@ -61,47 +62,38 @@ stages:
             maven | "$(Agent.OS)"
             maven
           path: $(MAVEN_CACHE_FOLDER)
-        displayName: Cache Maven Artifacts
+        displayName: Cache Maven local repo
       - script: |
-            wget https://nodejs.org/dist/v10.15.0/node-v10.15.0-linux-x64.tar.gz
+            wget https://nodejs.org/dist/v10.15.3/node-v10.15.3-linux-x64.tar.gz
             mkdir $(Build.SourcesDirectory)/node
-            tar -xzf node-v10.15.0-linux-x64.tar.gz -C $(Build.SourcesDirectory)/node
+            tar -xzf node-v10.15.3-linux-x64.tar.gz -C $(Build.SourcesDirectory)/node
             sudo rm -f /usr/local/bin/node
             sudo rm -f /usr/local/bin/npm
-            sudo ln -s $(Build.SourcesDirectory)/node/node-v10.15.0-linux-x64/bin/node /usr/local/bin/node
-            sudo ln -s $(Build.SourcesDirectory)/node/node-v10.15.0-linux-x64/bin/npm  /usr/local/bin/npm
+            sudo ln -s $(Build.SourcesDirectory)/node/node-v10.15.3-linux-x64/bin/node /usr/local/bin/node
+            sudo ln -s $(Build.SourcesDirectory)/node/node-v10.15.3-linux-x64/bin/npm  /usr/local/bin/npm
             sudo chown -R root:root $(Build.SourcesDirectory)/node
-        displayName: Install Prerequisites
+        displayName: prerequisites installation
       - script: |
-            mvn clean compile
-        displayName: Maven Compilation
+            mvn clean install -Pdeployment
+        displayName: maven build on PR
         condition: and(succeeded(), eq(variables['Build.Reason'], 'PullRequest'))
 
       - script: |
             mvn clean install -P$(uat_build_profile) -Dcdn-url=$(uat_cdn_url)/$(Build.BuildId)/ng-bundle/
             mkdir static_content
             unzip ./target/ui-artifact.zip -d static_content/
-        displayName: Maven Build on UAT Branch
+        displayName: maven build on UAT branch
         condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/UAT'))
 
       - script: |
             mvn clean install -P$(prod_build_profile) -Dcdn-url=$(prod_cdn_url)/$(Build.BuildId)/ng-bundle/
             mkdir static_content
             unzip ./target/ui-artifact.zip -d static_content/
-        displayName: Maven Build on PROD Branch
+        displayName: maven build on prod branch
         condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/PROD'))
-      
-      - script: |
-            echo "mvn clean install -P$(demo_build_profile) -Dcdn-url=$(demo_cdn_url)/$(Build.BuildId)/ng-bundle/"
-            mvn clean install -P$(demo_build_profile) -Dcdn-url=$(demo_cdn_url)/$(Build.BuildId)/ng-bundle/
-            mkdir static_content
-            unzip ./target/ui-artifact.zip -d static_content/
-        displayName: Maven Build on master Branch
-        condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master')) 
-      
 
       - task: AzureCLI@2
-        displayName: Uploading UAT Static Content to AzureBlob
+        displayName: uploading static content for UAT
         condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/UAT'))
         inputs:
           azureSubscription: $(subcription_service)
@@ -111,7 +103,7 @@ stages:
             az storage blob upload-batch -s ./static_content/ -d $(uat_blob) --destination-path $(Build.BuildId) --account-name $(storage_account)
       
       - task: AzureCLI@2
-        displayName: Uploading PROD Static Content to AzureBlob
+        displayName: uploading static content for PROD
         condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/PROD'))
         inputs:
           azureSubscription: $(subcription_service)
@@ -119,17 +111,6 @@ stages:
           scriptLocation: inlineScript
           inlineScript: |
             az storage blob upload-batch -s ./static_content/ -d $(prod_blob)  --destination-path $(Build.BuildId) --account-name $(storage_account)
-            
-      - task: AzureCLI@2
-        displayName: Uploading Demo Static Content to AzureBlob
-        condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
-        inputs:
-          azureSubscription: $(subcription_service)
-          scriptType: bash
-          scriptLocation: inlineScript
-          inlineScript: |
-            az storage blob upload-batch -s ./static_content/ -d $(demo_blob)  --destination-path $(Build.BuildId) --account-name $(storage_account)  
-      
 
       - task: Docker@2
         displayName: Login to ACR
@@ -138,7 +119,7 @@ stages:
           command: login
           containerRegistry: $(azureContainerRegistry)
       - task: Docker@2
-        displayName: Build and Push UAT Docker Image
+        displayName: build and Push image
         condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/UAT'))
         inputs:
           containerRegistry: |
@@ -149,7 +130,7 @@ stages:
             $(Build.BuildId)
       
       - task: Docker@2
-        displayName: Build and Push PROD Docker Image
+        displayName: build and Push image
         condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/PROD'))
         inputs:
           containerRegistry: |
@@ -158,47 +139,37 @@ stages:
           command: buildAndPush
           tags: |
             $(Build.BuildId)
-            
-      - task: Docker@2
-        displayName: Build and Push DEMO Docker Image
-        condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
-        inputs:
-          containerRegistry: |
-            $(azureContainerRegistry)
-          repository: $(demo_image_repository)
-          command: buildAndPush
-          tags: |
-            $(Build.BuildId) 
       
 
   - job: AKS_deployment_to_UAT
     dependsOn: maven_build_and_docker_build
-    displayName: Deploy to UAT AKS Env
+    displayName: deploy to AKS from UAT
     condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/UAT'))
     steps:
     - script: |
           sed -i '/replicas/  s/1/$(webapp_replicas)/g' k8s-manifestfiles/wm_app_webapp.yml
+          sed -i 's/FLUENTD_NAMESPACE/$(UAT_branch_namespace)/g'  k8s-manifestfiles/wm_app_fluentd_role.yml
           sed -i '/image/   s/CONTAINER_IMAGE/$(image_registry)\/$(uat_image_repository):tag/g' k8s-manifestfiles/wm_app_webapp.yml
-          sed -i '49,63 s/^/#/' k8s-manifestfiles/wm_app_webapp.yml
+          sed -i '181,195 s/^/#/' k8s-manifestfiles/wm_app_webapp.yml
           sed -i '/path/   s/MY_APPLICATION\/\*/$(application_context)\/\*/g' k8s-manifestfiles/wm_app_nginx_ingress_service.yml
           sed -i '/host/   s/testapp.com/$(uat_hostname)/g' k8s-manifestfiles/wm_app_nginx_ingress_service.yml
           sed -i '/secretName/  s/MYTLS_SECRET/$(tls_secretname)/g' k8s-manifestfiles/wm_app_nginx_ingress_service.yml
-      displayName: Preparing Manifestfiles
+      displayName: preparing manifestfiles
     - script: |
           sed -i 's/APP_NAME/$(project_name)/g' k8s-manifestfiles/*
-      displayName: Replacing Placeholders in Manifestfiles
+      displayName: preparing app deployments files
     - task: DownloadSecureFile@1
       name: websitebundle
-      displayName: 'Download Website Certificate'
+      displayName: 'Download website certificate'
       inputs:
         secureFile: '$(uat_website_bundle_crt)'
     - task: DownloadSecureFile@1
       name: websiteprivatekey
-      displayName: 'Download Website Private Key'
+      displayName: 'Download website private key'
       inputs:
         secureFile: '$(uat_website_private_key)'
     - task: Kubernetes@1
-      displayName: Creating TLS Secret in UAT Env
+      displayName: creating TLS secret in UAT env
       inputs:
         connectionType: Kubernetes Service Connection
         kubernetesServiceEndpoint: $(aks_service)
@@ -207,22 +178,22 @@ stages:
       continueOnError: true
 
     - task: KubernetesManifest@0
-      displayName: Deploy App Config and Secrets to UAT Env
+      displayName: Deploy application config and secrets to UAT branch env
       inputs:
-        kubdemo_build_profileernetesServiceConnection: $(aks_service)
+        kubernetesServiceConnection: $(aks_service)
         namespace: $(UAT_branch_namespace)
         manifests: k8s-manifestfiles/wm_app_config_and_secret.yml
 
     - task: KubernetesManifest@0
       condition: eq(variables['database_container'], 'yes')
-      displayName: Deploy Database to UAT Env
+      displayName: Deploy database  to UAT branch env
       inputs:
         kubernetesServiceConnection: $(aks_service)
         namespace: $(UAT_branch_namespace)
         manifests: k8s-manifestfiles/database_statefulset.yml
         
     - task: KubernetesManifest@0
-      displayName: Deploy App Container to UAT Env
+      displayName: Deploy only app container to UAT branch
       inputs:
         kubernetesServiceConnection: $(aks_service)
         namespace: $(UAT_branch_namespace)
@@ -231,13 +202,13 @@ stages:
           $(image_registry)/$(uat_image_repository):$(Build.BuildId)
 
     - task: KubernetesManifest@0
-      displayName: Deploy HPA to UAT Env
+      displayName: Deploy horizantal pod autoscale to UAT branch env
       inputs:
         kubernetesServiceConnection: $(aks_service)
         namespace: $(UAT_branch_namespace)
         manifests: k8s-manifestfiles/wm_app_hpa.yml
     - task: KubernetesManifest@0
-      displayName: Deploy Ingress Service to UAT Env
+      displayName: Deploy ingress service to UAT branch env
       inputs:
         kubernetesServiceConnection: $(aks_service)
         namespace: $(UAT_branch_namespace)
@@ -246,12 +217,13 @@ stages:
 
   - job: AKS_deployment_to_prod
     dependsOn: maven_build_and_docker_build
-    displayName: Deploy to PROD AKS Env
+    displayName: deploy to AKS from prod
     condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/PROD'))
     steps:
     - script: |
           sed -i '/replicas/  s/1/$(webapp_replicas)/g' k8s-manifestfiles/wm_app_webapp.yml
-          sed -i '49,63 s/^/#/' k8s-manifestfiles/wm_app_webapp.yml
+          sed -i 's/FLUENTD_NAMESPACE/$(PROD_branch_namespace)/g'  k8s-manifestfiles/wm_app_fluentd_role.yml
+          sed -i '181,195 s/^/#/' k8s-manifestfiles/wm_app_webapp.yml
           sed -i '/image/   s/CONTAINER_IMAGE/$(image_registry)\/$(prod_image_repository):tag/g' k8s-manifestfiles/wm_app_webapp.yml
           sed -i '/path/   s/MY_APPLICATION\/\*/$(application_context)\/\*/g' k8s-manifestfiles/wm_app_nginx_ingress_service.yml
           sed -i '/host/   s/testapp.com/$(prod_hostname)/g' k8s-manifestfiles/wm_app_nginx_ingress_service.yml
@@ -262,16 +234,16 @@ stages:
       displayName: preparing manifestfiles
     - task: DownloadSecureFile@1
       name: websitebundle
-      displayName: 'Download Website Certificate'
+      displayName: 'Download website certificate'
       inputs:
         secureFile: '$(prod_website_bundle_crt)'
     - task: DownloadSecureFile@1
       name: websiteprivatekey
-      displayName: 'Download Website Private Key'
+      displayName: 'Download website private key'
       inputs:
         secureFile: '$(prod_website_private_key)'
     - task: Kubernetes@1
-      displayName: Creating TLS Secret in PROD Env
+      displayName: creating TLS secret in prod env
       inputs:
         connectionType: Kubernetes Service Connection
         kubernetesServiceEndpoint: $(aks_service)
@@ -280,7 +252,7 @@ stages:
       continueOnError: true
       
     - task: KubernetesManifest@0
-      displayName: Deploying App Config and Secrets to PROD Env
+      displayName: Deploying application congig and secrets to PROD branch
       inputs:
         kubernetesServiceConnection: $(aks_service)
         namespace: $(PROD_branch_namespace)
@@ -288,14 +260,14 @@ stages:
 
     - task: KubernetesManifest@0
       condition: eq(variables['database_container'], 'yes')
-      displayName: Deploy Database and App containers to PROD Env
+      displayName: Deploy database and application container to PROD branche
       inputs:
         kubernetesServiceConnection: $(aks_service)
         namespace: $(PROD_branch_namespace)
         manifests: k8s-manifestfiles/database_statefulset.yml
         
     - task: KubernetesManifest@0
-      displayName: Deploy App container to PROD Env
+      displayName: Deploy application container to PROD branch
       inputs:
         kubernetesServiceConnection: $(aks_service)
         namespace: $(PROD_branch_namespace)
@@ -304,89 +276,16 @@ stages:
           $(image_registry)/$(prod_image_repository):$(Build.BuildId)
 
     - task: KubernetesManifest@0
-      displayName: Deploy App HPA to PROD Env
+      displayName: Deploy application horizantal pod autoscaler to PROD branch
       inputs:
         kubernetesServiceConnection: $(aks_service)
         namespace: $(PROD_branch_namespace)
         manifests: k8s-manifestfiles/wm_app_hpa.yml
     - task: KubernetesManifest@0
-      displayName: Deploy App Ingress Service to PROD Env
+      displayName: Deploy application ingress service to PROD branch
       inputs:
         kubernetesServiceConnection: $(aks_service)
         namespace: $(PROD_branch_namespace)
         manifests: k8s-manifestfiles/wm_app_nginx_ingress_service.yml
-        
-  
-  - job: AKS_deployment_to_DEMO_Env
-    dependsOn: maven_build_and_docker_build
-    displayName: Deploy to DEMO AKS Env
-    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
-    steps:
-    - script: |
-          sed -i '/replicas/  s/1/$(webapp_replicas)/g' k8s-manifestfiles/wm_app_webapp.yml
-          sed -i '49,63 s/^/#/' k8s-manifestfiles/wm_app_webapp.yml
-          sed -i '/image/   s/CONTAINER_IMAGE/$(image_registry)\/$(demo_image_repository):tag/g' k8s-manifestfiles/wm_app_webapp.yml
-          sed -i '/path/   s/MY_APPLICATION\/\*/$(application_context)\/\*/g' k8s-manifestfiles/wm_app_nginx_ingress_service.yml
-          sed -i '/host/   s/testapp.com/$(demo_hostname)/g' k8s-manifestfiles/wm_app_nginx_ingress_service.yml
-          sed -i '/secretName/  s/MYTLS_SECRET/$(tls_secretname)/g' k8s-manifestfiles/wm_app_nginx_ingress_service.yml
-      displayName: preparing webapp replicas and container image name
-    - script: |
-          sed -i 's/APP_NAME/$(project_name)/g' k8s-manifestfiles/*
-      displayName: preparing manifestfiles
-    - task: DownloadSecureFile@1
-      name: websitebundle
-      displayName: 'Download Website Certificate'
-      inputs:
-        secureFile: '$(demo_website_bundle_crt)'
-    - task: DownloadSecureFile@1
-      name: websiteprivatekey
-      displayName: 'Download Website Private Key'
-      inputs:
-        secureFile: '$(demo_website_private_key)'
-    - task: Kubernetes@1
-      displayName: Creating TLS Secret in DEMO Env
-      inputs:
-        connectionType: Kubernetes Service Connection
-        kubernetesServiceEndpoint: $(aks_service)
-        command: create
-        arguments: secret tls $(tls_secretname)  --namespace $(demo_namespace)  --key $(websiteprivatekey.secureFilePath)  --cert $(websitebundle.secureFilePath)
-      continueOnError: true
-      
-    - task: KubernetesManifest@0
-      displayName: Deploying App Config and Secrets to DEMO Env
-      inputs:
-        kubernetesServiceConnection: $(aks_service)
-        namespace: $(demo_namespace)
-        manifests: k8s-manifestfiles/wm_app_config_and_secret.yml
-
-    - task: KubernetesManifest@0
-      condition: eq(variables['database_container'], 'yes')
-      displayName: Deploy Database and App containers to DEMO Env
-      inputs:
-        kubernetesServiceConnection: $(aks_service)
-        namespace: $(demo_namespace)
-        manifests: k8s-manifestfiles/database_statefulset.yml
-        
-    - task: KubernetesManifest@0
-      displayName: Deploy App container to DEMO Env
-      inputs:
-        kubernetesServiceConnection: $(aks_service)
-        namespace: $(demo_namespace)
-        manifests: k8s-manifestfiles/wm_app_webapp.yml
-        containers: |
-          $(image_registry)/$(demo_image_repository):$(Build.BuildId)
-
-    - task: KubernetesManifest@0
-      displayName: Deploy App HPA to DEMO Env
-      inputs:
-        kubernetesServiceConnection: $(aks_service)
-        namespace: $(demo_namespace)
-        manifests: k8s-manifestfiles/wm_app_hpa.yml
-    - task: KubernetesManifest@0
-      displayName: Deploy App Ingress Service to DEMO Env
-      inputs:
-        kubernetesServiceConnection: $(aks_service)
-        namespace: $(demo_namespace)
-        manifests: k8s-manifestfiles/wm_app_nginx_ingress_service.yml  
         
 
