@@ -74,7 +74,7 @@ stages:
             sudo chown -R root:root $(Build.SourcesDirectory)/node
         displayName: prerequisites installation
       - script: |
-            mvn clean install -Pdeployment
+            mvn clean compile
         displayName: maven build on PR
         condition: and(succeeded(), eq(variables['Build.Reason'], 'PullRequest'))
 
@@ -141,7 +141,7 @@ stages:
             $(Build.BuildId)
       
 
-  - job: AKS_deployment_to_UAT
+  - job: AKS_deployment_to_UAT_env
     dependsOn: maven_build_and_docker_build
     displayName: deploy to AKS from UAT
     condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/UAT'))
@@ -158,16 +158,21 @@ stages:
     - script: |
           sed -i 's/APP_NAME/$(project_name)/g' k8s-manifestfiles/*
       displayName: preparing app deployments files
+
     - task: DownloadSecureFile@1
       name: websitebundle
       displayName: 'Download website certificate'
       inputs:
         secureFile: '$(uat_website_bundle_crt)'
+      continueOnError: true
+
     - task: DownloadSecureFile@1
       name: websiteprivatekey
       displayName: 'Download website private key'
       inputs:
         secureFile: '$(uat_website_private_key)'
+      continueOnError: true
+      
     - task: Kubernetes@1
       displayName: creating TLS secret in UAT env
       inputs:
@@ -178,7 +183,7 @@ stages:
       continueOnError: true
 
     - task: KubernetesManifest@0
-      displayName: Deploy application config and secrets to UAT branch env
+      displayName: Deploy application config and secrets to UAT env
       inputs:
         kubernetesServiceConnection: $(aks_service)
         namespace: $(UAT_branch_namespace)
@@ -186,14 +191,21 @@ stages:
 
     - task: KubernetesManifest@0
       condition: eq(variables['database_container'], 'yes')
-      displayName: Deploy database  to UAT branch env
+      displayName: Deploy database  to UAT env
       inputs:
         kubernetesServiceConnection: $(aks_service)
         namespace: $(UAT_branch_namespace)
         manifests: k8s-manifestfiles/database_statefulset.yml
+
+    - task: KubernetesManifest@0
+      displayName: Deploying fluentd role to UAT env
+      inputs:
+        kubernetesServiceConnection: $(aks_service)
+        namespace: $(UAT_branch_namespace)
+        manifests: k8s-manifestfiles/wm_app_fluentd_role.yml
         
     - task: KubernetesManifest@0
-      displayName: Deploy only app container to UAT branch
+      displayName: Deploy only app container to UAT env
       inputs:
         kubernetesServiceConnection: $(aks_service)
         namespace: $(UAT_branch_namespace)
@@ -202,13 +214,13 @@ stages:
           $(image_registry)/$(uat_image_repository):$(Build.BuildId)
 
     - task: KubernetesManifest@0
-      displayName: Deploy horizantal pod autoscale to UAT branch env
+      displayName: Deploy horizantal pod autoscale to UAT env
       inputs:
         kubernetesServiceConnection: $(aks_service)
         namespace: $(UAT_branch_namespace)
         manifests: k8s-manifestfiles/wm_app_hpa.yml
     - task: KubernetesManifest@0
-      displayName: Deploy ingress service to UAT branch env
+      displayName: Deploy ingress service to UAT env
       inputs:
         kubernetesServiceConnection: $(aks_service)
         namespace: $(UAT_branch_namespace)
@@ -237,11 +249,15 @@ stages:
       displayName: 'Download website certificate'
       inputs:
         secureFile: '$(prod_website_bundle_crt)'
+      continueOnError: true
+
     - task: DownloadSecureFile@1
       name: websiteprivatekey
       displayName: 'Download website private key'
       inputs:
         secureFile: '$(prod_website_private_key)'
+      continueOnError: true
+
     - task: Kubernetes@1
       displayName: creating TLS secret in prod env
       inputs:
@@ -252,7 +268,7 @@ stages:
       continueOnError: true
       
     - task: KubernetesManifest@0
-      displayName: Deploying application congig and secrets to PROD branch
+      displayName: Deploying application congig and secrets to PROD env
       inputs:
         kubernetesServiceConnection: $(aks_service)
         namespace: $(PROD_branch_namespace)
@@ -260,14 +276,21 @@ stages:
 
     - task: KubernetesManifest@0
       condition: eq(variables['database_container'], 'yes')
-      displayName: Deploy database and application container to PROD branche
+      displayName: Deploy database and application container to PROD env
       inputs:
         kubernetesServiceConnection: $(aks_service)
         namespace: $(PROD_branch_namespace)
         manifests: k8s-manifestfiles/database_statefulset.yml
-        
+
     - task: KubernetesManifest@0
-      displayName: Deploy application container to PROD branch
+      displayName: Deploying fluentd role to PROD env
+      inputs:
+        kubernetesServiceConnection: $(aks_service)
+        namespace: $(PROD_branch_namespace)
+        manifests: k8s-manifestfiles/wm_app_fluentd_role.yml
+
+    - task: KubernetesManifest@0
+      displayName: Deploy application container to PROD env
       inputs:
         kubernetesServiceConnection: $(aks_service)
         namespace: $(PROD_branch_namespace)
@@ -276,16 +299,17 @@ stages:
           $(image_registry)/$(prod_image_repository):$(Build.BuildId)
 
     - task: KubernetesManifest@0
-      displayName: Deploy application horizantal pod autoscaler to PROD branch
+      displayName: Deploy application horizantal pod autoscaler to PROD env
       inputs:
         kubernetesServiceConnection: $(aks_service)
         namespace: $(PROD_branch_namespace)
         manifests: k8s-manifestfiles/wm_app_hpa.yml
     - task: KubernetesManifest@0
-      displayName: Deploy application ingress service to PROD branch
+      displayName: Deploy application ingress service to PROD env
       inputs:
         kubernetesServiceConnection: $(aks_service)
         namespace: $(PROD_branch_namespace)
         manifests: k8s-manifestfiles/wm_app_nginx_ingress_service.yml
+    
         
 
