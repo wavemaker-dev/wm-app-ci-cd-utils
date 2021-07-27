@@ -48,10 +48,14 @@ logging folder have configuration and manifestfiles for deploying the observabil
 
 
 
-## Dockerfile.build
+## Dockerfile.deploy
 
 Multi Stage Docker file for sample build tomcat image with war file from sourccode
 The Dockerfile will do build using maven , java and node prerequisites at one stage and deploy the application to tomcat in another stage
+
+## Dockerfile.build
+
+Building the Application War at the time of container run with m2 as volume
 
 ## azure-pipelines.yml
 
