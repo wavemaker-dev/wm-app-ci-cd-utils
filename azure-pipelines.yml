@@ -64,13 +64,13 @@ stages:
           path: $(MAVEN_CACHE_FOLDER)
         displayName: Cache Maven local repo
       - script: |
-            wget https://nodejs.org/dist/v10.15.3/node-v10.15.3-linux-x64.tar.gz
+            wget https://nodejs.org/dist/v12.22.3/node-v12.22.3-linux-x64.tar.gz
             mkdir $(Build.SourcesDirectory)/node
-            tar -xzf node-v10.15.3-linux-x64.tar.gz -C $(Build.SourcesDirectory)/node
+            tar -xzf node-v12.22.3-linux-x64.tar.gz -C $(Build.SourcesDirectory)/node
             sudo rm -f /usr/local/bin/node
             sudo rm -f /usr/local/bin/npm
-            sudo ln -s $(Build.SourcesDirectory)/node/node-v10.15.3-linux-x64/bin/node /usr/local/bin/node
-            sudo ln -s $(Build.SourcesDirectory)/node/node-v10.15.3-linux-x64/bin/npm  /usr/local/bin/npm
+            sudo ln -s $(Build.SourcesDirectory)/node/node-v12.22.3-linux-x64/bin/node /usr/local/bin/node
+            sudo ln -s $(Build.SourcesDirectory)/node/node-v12.22.3-linux-x64/bin/npm  /usr/local/bin/npm
             sudo chown -R root:root $(Build.SourcesDirectory)/node
         displayName: prerequisites installation
       - script: |

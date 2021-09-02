@@ -8,10 +8,10 @@ phases:
         java: openjdk8
         python: 3.8
       commands:
-        - wget https://nodejs.org/dist/v10.15.3/node-v10.15.3-linux-x64.tar.gz && mkdir $CODEBUILD_SRC_DIR/node && tar -xzf node-v10.15.3-linux-x64.tar.gz -C $CODEBUILD_SRC_DIR/node
+        - wget https://nodejs.org/dist/v12.22.3/node-v12.22.3-linux-x64.tar.gz && mkdir $CODEBUILD_SRC_DIR/node && tar -xzf node-v10.15.3-linux-x64.tar.gz -C $CODEBUILD_SRC_DIR/node
         - rm -f /usr/local/bin/node && rm -f /usr/local/bin/npm
-        - ln -s $CODEBUILD_SRC_DIR/node/node-v10.15.3-linux-x64/bin/node /usr/local/bin/node
-        - ln -s $CODEBUILD_SRC_DIR/node/node-v10.15.3-linux-x64/bin/npm  /usr/local/bin/npm
+        - ln -s $CODEBUILD_SRC_DIR/node/node-v12.22.3-linux-x64/bin/node /usr/local/bin/node
+        - ln -s $CODEBUILD_SRC_DIR/node/node-v12.22.3-linux-x64/bin/npm  /usr/local/bin/npm
         - chown -R root:root $CODEBUILD_SRC_DIR/node
   pre_build:
       commands:
