@@ -1,0 +1,18 @@
+version: 0.0
+os: linux
+#The files will export to the path given in the destination and if the files already exists, overwrite them.
+files:
+  - source: .
+    destination: /home/ubuntu/github-actions-wm-signup/
+file_exists_behavior: OVERWRITE
+#The 'hooks' section for an EC2/On-Premises deployment contains mappings that link deployment lifecycle event hooks to one or more scripts.
+#If an event hook is not present, no operation is executed for that event.
+hooks:
+  AfterInstall:
+   - location: login.sh
+     timeout: 300  #in seconds
+     runas: root
+  ApplicationStart:
+   - location: run.sh
+     timeout: 300 #in seconds
+     runas: root

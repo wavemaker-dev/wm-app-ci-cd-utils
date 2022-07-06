@@ -1,0 +1,62 @@
+name: website signup deployment
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - 'next-release'
+
+env:
+  repo_name: ${{ secrets.REPO_NAME }}
+  IMAGE_TAG: ${{ github.run_number }}
+  
+
+jobs:
+  application_build_and_deploy:
+    runs-on: ubuntu-latest
+    steps:
+      
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}        
+
+      
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+          
+      
+      - name: Image Build and push
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          build-args: |
+            build_profile_name=deployment
+          push: true
+          tags:  ${{ steps.login-ecr.outputs.registry }}/${{ env.repo_name }}:${{ env.IMAGE_TAG }}
+
+
+      - name: update build number and credentials  
+        shell: bash
+        run:  |
+          aws ssm put-parameter --name "/github-ci-cd/repo" --type "String" --value ${{ env.repo_name }} --overwrite
+          aws ssm put-parameter --name "/github-ci-cd/build_number" --type "String" --value ${{ env.IMAGE_TAG }} --overwrite 
+
+      - name: Create CodeDeploy Deployment
+        shell: bash
+        run: |
+          aws deploy create-deployment --region ${{ secrets.AWS_REGION }} \
+            --application-name wm-signup-application \
+            --deployment-group-name wm-signup-deployment \
+            --deployment-config-name CodeDeployDefault.OneAtATime \
+            --github-location repository=${{ github.repository }},commitId=${{ github.sha }}   
+
+
+       
+        
