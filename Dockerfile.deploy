@@ -1,6 +1,6 @@
 # we use this dockerfile when doing operations with jenkins. to build in one machine and deploy in other machine
 #  to build the docker image on same node push to registry
-FROM maven:3.9.4-jdk-8 as maven-java-node
+FROM maven:3.9.4-eclipse-temurin-11 as maven-java-node
 ENV MAVEN_CONFIG=~/.m2
 RUN mkdir -p /usr/local/content/node
 WORKDIR /usr/local/content/node
