@@ -57,6 +57,19 @@ The Dockerfile will do build using maven , java and node prerequisites at one st
 
 Building the Application War at the time of container run with m2 as volume
 
+## Dockerfile.deploy.reactnative
+
+Multi Stage Docker file for React Native Applications and do sample build tomcat image with war file from sourccode
+The Dockerfile will do build using maven , java and node prerequisites at one stage for React Native and deploy the application to tomcat in another stage
+
+## Dockerfile.build.reactnative
+
+Building the React Native Application War at the time of container run with m2 as volume
+
+## Dockerfile.preview.reactnative
+
+Building Docker image for react native local web preview. 
+
 ## azure-pipelines.yml
 
 azure-pipelines.yml file is used to automate the ci-cd process using Azure resources.The will trigger azure pipeline for deploy application to AZURE KUBERNETES SERVICE
