@@ -1,5 +1,5 @@
 #Building the application using Maven and Node.js
-FROM maven:3.9.4-eclipse-temurin-11 as maven-java-node
+FROM maven:3.9.5-eclipse-temurin-11 as maven-java-node
 
 # Setting the Maven configuration directory
 ENV MAVEN_CONFIG=~/.m2
@@ -38,7 +38,7 @@ ENV profile=${build_profile_name}
 RUN mvn clean install -P${profile}
 
 # Deploy the application to Tomcat 
-FROM tomcat:9.0.82
+FROM tomcat:9.0.83-jdk11-temurin
 
 # Copying the WAR file from the previous stage into the Tomcat webapps directory
 COPY --from=webapp-artifact /usr/local/content/app/target/*.war /usr/local/tomcat/webapps/
