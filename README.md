@@ -66,7 +66,7 @@ The Dockerfile will do build using maven , java and node prerequisites at one st
 
 Building the React Native Application War at the time of container run with m2 as volume
 
-## Dockerfile.preview.reactnative
+## Dockerfile.LocalWebPreview
 
 Building Docker image for react native local web preview. 
 
